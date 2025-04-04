@@ -1,49 +1,103 @@
 import React from "react";
+import axios from "axios";
 
-import plus from "./image/plus.svg";
-import search from "./image/search.svg";
-import greyHeart from "./image/greyHeart.svg";
-import redHeart from "./image/redHeart.svg";
-import btnChecked from "./image/btnChecked.svg";
-import arrow from './image/arrow.svg';
-import sCardImg from "./image/2.jpg";
-import tCardImg from "./image/3.jpg";
-import foCardImg from "./image/4.jpg";
+import { Route, Routes } from "react-router-dom";
 
-
-import Card from './components/Card'
 import Header from "./components/Header";
 import Drawer from "./components/Drawer";
+import Home from "./pages/Home";
+import Favourites from "./pages/Favourites";
 
 function App() {
-  return (
+	const [items, setItems] = React.useState([]);
+	const [cartItems, setCartItems] = React.useState([]);
+	const [fav, setFav] = React.useState([]);
+	const [searchValue, setSearchValue] = React.useState("");
+	const [cardOpened, setCardOpened] = React.useState(false);
 
-    <div className="wrapper clear">
+	React.useEffect(() => {
+		axios.get("https://b663fe059daecda8.mokky.dev/items").then((res) => {
+			setItems(res.data);
+		});
+		axios.get("https://b663fe059daecda8.mokky.dev/cart").then((res) => {
+			setCartItems(res.data);
+		});
+		axios.get("https://b663fe059daecda8.mokky.dev/favourites").then((res) => {
+			setFav(res.data);
+		});
+	}, []);
 
-      <Drawer/>
+	const onAddToCart = async (obj) => {
+		const { data } = await axios.post(
+			"https://b663fe059daecda8.mokky.dev/cart",
+			obj,
+		);
+		setCartItems((prev) => [...prev, data]);
+	};
+	const onAddToFavourite = async (obj, id) => {
+		if (fav.find((favObj) => favObj.id === id)) {
+			await axios.delete(
+				`https://b663fe059daecda8.mokky.dev/favourites/${id}`,
+			);
+			setFav((prev) => prev.filter((item) => item.id !== id));
+		} else {
+			const { data } = await axios.post(
+				"https://b663fe059daecda8.mokky.dev/favourites",
+				obj,
+			);
+			setFav((prev) => [...prev, data]);
+		}
+	};
 
+	const onRemoveItem = (id) => {
+		axios.delete(`https://b663fe059daecda8.mokky.dev/cart/${id}`).then(() => {
+			setCartItems((prev) => prev.filter((item) => item.id !== id));
+		});
+	};
 
-      <Header />
+	const onChangeSearchInput = (event) => {
+		setSearchValue(event.target.value);
+	};
 
-      <div className="content p-40">
-        <div className="d-flex justify-between align-center mb-40">
-          <h1 className="mb-40">Все кроссовки</h1>
-          <div className="search-block d-flex">
-            <img src={search} alt="search" />
-            <input placeholder="Поиск..." />
-          </div>
-        </div>
+	return (
+		<div className="wrapper clear">
+			{cardOpened && (
+				<Drawer
+					items={cartItems}
+					onClose={() => setCardOpened(false)}
+					onRemove={onRemoveItem}
+				/>
+			)}
+			{/* если левая часть true, то выполни правую часть. если false, то не выполняй правую часть */}
+			<Header onClickCart={() => setCardOpened(true)} />
 
-        <div className=" d-flex ">
-          <Card />
-          <Card />
-          <Card />
-          <Card />
-
-        </div>
-      </div>
-    </div>
-  );
+			<Routes>
+				<Route
+					path="/"
+					exact
+					element={
+						<Home
+							searchValue={searchValue}
+							items={items}
+							onChangeSearchInput={onChangeSearchInput}
+							setSearchValue={setSearchValue}
+							onAddToFavourite={onAddToFavourite}
+							onAddToCart={onAddToCart}
+						/>
+					}
+				/>
+			</Routes>
+			<Routes>
+				<Route
+					path="/Favourites"
+					exact
+					element={
+						<Favourites items={fav} onAddToFavourite={onAddToFavourite} />
+					}
+				/>
+			</Routes>
+		</div>
+	);
 }
 
 export default App;
